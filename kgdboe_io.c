@@ -3,12 +3,14 @@
 #include <linux/kallsyms.h>
 #include <linux/cpu.h>
 #include "kgdboe_io.h"
+#include "kgdboe_io_extension.h"
 #include "netpoll_wrapper.h"
 #include "nethook.h"
 #include "tracewrapper.h"
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6,9,0)
 	#include <net/hotdata.h>
 #endif
+
 
 struct netpoll_wrapper *s_pKgdboeNetpoll;
 
@@ -20,6 +22,9 @@ static char s_OutgoingBuffer[30];
 static volatile int s_OutgoingBufferUsed;
 
 static bool s_StoppedInKgdb;
+
+void kgdb_schedule_breakpoint(void);
+int force_single_cpu_mode(void);
 
 static void kgdboe_tasklet_bpt(struct tasklet_struct *p)
 {
@@ -88,8 +93,9 @@ static int kgdboe_read_char(void)
 
 	BUG_ON(!s_pKgdboeNetpoll);
 	
-    while (s_IncomingRingBufferReadPosition == s_IncomingRingBufferWritePosition)
+    while (s_IncomingRingBufferReadPosition == s_IncomingRingBufferWritePosition) {
         netpoll_wrapper_poll(s_pKgdboeNetpoll);
+	}
 
 	result = s_IncomingRingBuffer[s_IncomingRingBufferReadPosition++];
 	s_IncomingRingBufferReadPosition %= sizeof(s_IncomingRingBuffer);
@@ -207,6 +213,14 @@ int kgdboe_io_init(const char *device_name, int port, const char *local_ip, bool
 		return err;
 	}
 
+	err = kgdboe_io_extension_init();
+	if (err != 0)
+	{
+		netpoll_wrapper_free(s_pKgdboeNetpoll);
+		s_pKgdboeNetpoll = NULL;
+		return err;
+	}
+
 	netpoll_wrapper_set_callback(s_pKgdboeNetpoll, kgdboe_rx_handler, NULL);
 
 	memcpy(ipaddr, &ip_addr_as_int(s_pKgdboeNetpoll->netpoll_obj.local_ip), 4);
@@ -225,6 +239,7 @@ void kgdboe_io_cleanup(void)
 		module all the time (just execute the 'detach' command in GDB and connect back when ready), we
 		don't check for it here.
 	*/
+	kgdboe_io_extension_cleanup();
 	kgdb_unregister_io_module(&kgdboe_io_ops);
 	netpoll_wrapper_free(s_pKgdboeNetpoll);
 	nethook_cleanup();

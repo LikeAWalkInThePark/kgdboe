@@ -2,7 +2,7 @@
 # Use VisualKernel Project Properties to edit.
 
 KERNEL_MODULE_NAME := kgdboe
-KERNEL_MODULE_OBJECT_FILE_LIST := irqsync.o kgdboe_main.o kgdboe_io.o nethook.o netpoll_wrapper.o poll_copy.o spinhook.o timerhook.o
+KERNEL_MODULE_OBJECT_FILE_LIST := irqsync.o kgdboe_main.o kgdboe_io.o nethook.o netpoll_wrapper.o poll_copy.o spinhook.o timerhook.o kgdboe_io_extension.o
 
 obj-m := $(KERNEL_MODULE_NAME).o
 $(KERNEL_MODULE_NAME)-y += $(KERNEL_MODULE_OBJECT_FILE_LIST)
@@ -10,6 +10,9 @@ ccflags-y := -ggdb -Og -std=gnu99
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+
+clean:
+	rm -f ..module-common.o.cmd .Module.symvers.cmd .irqsync.o.cmd .kgdboe.ko.cmd .kgdboe.mod.cmd .kgdboe.mod.o.cmd .kgdboe.o.cmd .kgdboe_io.o.cmd .kgdboe_main.o.cmd .module-common.o .modules.order.cmd .nethook.o.cmd .netpoll_wrapper.o.cmd .poll_copy.o.cmd .spinhook.o.cmd .timerhook.o.cmd Module.symvers irqsync.o kgdboe.ko kgdboe.mod kgdboe.mod.c kgdboe.mod.o kgdboe.o kgdboe_io.o kgdboe_main.o modules.order nethook.o netpoll_wrapper.o poll_copy.o spinhook.o timerhook.o kgdboe_io_extension.o .kgdboe_io_extension.o.cmd
 
 install:
 	@echo "Installing $(KERNEL_MODULE_NAME).ko for initramfs startup"
